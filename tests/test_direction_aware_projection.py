@@ -8,24 +8,23 @@ def _fro_energy(m: np.ndarray) -> float:
     return float(np.sum(np.abs(m) ** 2))
 
 
-def test_direction_aware_projection_preserves_energy_for_basis_change():
-    ant = AntennaPort(
-        position=np.array([0.0, 0.0, 0.0]),
-        boresight=np.array([1.0, 0.0, 0.0]),
-        h_axis=np.array([0.0, 1.0, 0.0]),
-        v_axis=np.array([0.0, 0.0, 1.0]),
-        port_basis="HV",
-    )
+def test_direction_aware_projection_is_lossless_same_direction_and_nonamplifying_cross_direction():
+    # Same-direction basis change is unitary (lossless), while cross-direction
+    # projection between different local transverse planes should not amplify energy.
     k1 = np.array([1.0, 0.0, 0.0])
     k2 = np.array([0.7, 0.5, 0.5])
     m = np.array([[1.0 + 0.2j, 0.3 - 0.1j], [0.1 + 0.4j, -0.7 + 0.2j]], dtype=np.complex128)
 
-    b1 = ant.transverse_port_basis(k1)
-    b2 = ant.transverse_port_basis(k2)
-    t = projection_matrix(b1, b2)
-    m2 = t @ m @ t.conj().T
+    b1 = transverse_basis(k1)
+    t_same = projection_matrix(b1, b1)
+    m_same = t_same @ m @ t_same.conj().T
+    assert np.isclose(_fro_energy(m_same), _fro_energy(m), rtol=1e-10, atol=1e-12)
 
-    assert np.isclose(_fro_energy(m2), _fro_energy(m), rtol=1e-10, atol=1e-12)
+    b2 = transverse_basis(k2)
+    t_cross = projection_matrix(b1, b2)
+    m2 = t_cross @ m @ t_cross.conj().T
+
+    assert _fro_energy(m2) <= _fro_energy(m) + 1e-12
 
 
 def test_path_meta_basis_exists_in_trace_paths():
