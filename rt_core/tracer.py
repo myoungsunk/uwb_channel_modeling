@@ -165,11 +165,13 @@ def trace_paths(
                     r = np.diag([gs[fi], gp[fi]])
                     a_freq[fi] = t_out.conj().T @ r @ t_in @ a_freq[fi]
                     if depol and depol.enabled and depol.rho > 0:
-                        from rt_core.polarization import depol_matrix
+                        from rt_core.polarization import depol_loss_scalar, unitary_depol_matrix
 
                         rng = np.random.default_rng(depol.seed + fi + i if depol.seed is not None else None)
-                        dmat = depol_matrix(depol.rho, rng)
+                        dmat = unitary_depol_matrix(depol.rho, rng)
                         a_freq[fi] = dmat @ a_freq[fi] if depol.mode == "single" else dmat @ a_freq[fi] @ dmat
+                        if depol.loss_enabled:
+                            a_freq[fi] = depol_loss_scalar(depol.rho, depol.loss_alpha) * a_freq[fi]
             paths.append(
                 Path(
                     tau_s=dist / C0,
