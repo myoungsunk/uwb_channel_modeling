@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from rt_core.geometry import Material, Plane
+from rt_core.geometry import Material
+from rt_core.surfaces import RectSurface
 from rt_core.tracer import trace_paths
 from scenarios.common import default_antennas, make_freq
 
@@ -10,17 +11,44 @@ from scenarios.common import default_antennas, make_freq
 def build_scene(gap: float = 2.0):
     m = Material("PEC")
     return [
-        Plane(np.array([2.0, -gap, 0.0]), np.array([0.0, 1.0, 0.0]), m, "w1"),
-        Plane(np.array([3.5, gap, 0.0]), np.array([0.0, -1.0, 0.0]), m, "w2"),
+        RectSurface(
+            center=np.array([2.0, -gap, 1.5]),
+            normal=np.array([0.0, 1.0, 0.0]),
+            width=5.0,
+            height=3.0,
+            u_axis=np.array([1.0, 0.0, 0.0]),
+            material=m,
+            surface_id="w1",
+        ),
+        RectSurface(
+            center=np.array([4.0, 0.0, 1.5]),
+            normal=np.array([-1.0, 0.0, 0.0]),
+            width=4.0,
+            height=3.0,
+            u_axis=np.array([0.0, 1.0, 0.0]),
+            material=m,
+            surface_id="w2",
+        ),
     ]
 
 
 def build_sweep_params():
-    return [{"case_id": "a3_even", "gap": 2.0, "max_bounce": 2, "los_blocked": True}]
+    return [
+        {"case_id": "a3_even", "gap": 2.0, "max_bounce": 2, "los_blocked": True},
+        {"case_id": "a3_even_strict", "gap": 2.0, "max_bounce": 2, "los_blocked": True, "only_bounce": 2, "strict": True},
+    ]
 
 
 def run_case(params):
     tx, rx = default_antennas()
     f = make_freq()
     paths = trace_paths(build_scene(params["gap"]), tx, rx, f, max_bounce=params["max_bounce"], los_blocked=params["los_blocked"])
+
+    only_bounce = params.get("only_bounce")
+    if only_bounce is not None:
+        paths = [p for p in paths if int(p.meta.get("bounce_count", -1)) == int(only_bounce)]
+
+    if params.get("strict", False):
+        assert all(int(p.meta.get("bounce_count", -1)) == 2 for p in paths), "A3 strict mode requires bounce=2 only"
+
     return f, paths

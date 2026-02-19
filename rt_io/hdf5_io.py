@@ -17,6 +17,12 @@ Structure:
               incidence_angles   (L,Smax) float64, nan padded
               AoD                (L,3)
               AoA                (L,3)
+              AoD_unit           (L,3)
+              AoA_unit           (L,3)
+              u_tx               (L,3)
+              v_tx               (L,3)
+              u_rx               (L,3)
+              v_rx               (L,3)
 
 Example:
     >>> import numpy as np
@@ -123,6 +129,15 @@ def save_rt_hdf5(
                 incidence_rows = [list(map(float, p.meta.get("incidence_angles", []))) for p in paths]
                 aod = np.array([p.meta.get("AoD", [np.nan, np.nan, np.nan]) for p in paths], dtype=np.float64)
                 aoa = np.array([p.meta.get("AoA", [np.nan, np.nan, np.nan]) for p in paths], dtype=np.float64)
+                aod_u = np.array([p.meta.get("AoD_unit", [np.nan, np.nan, np.nan]) for p in paths], dtype=np.float64)
+                aoa_u = np.array([p.meta.get("AoA_unit", [np.nan, np.nan, np.nan]) for p in paths], dtype=np.float64)
+
+                tx_basis = [p.meta.get("u_v_basis", {}).get("tx", (np.full(3, np.nan), np.full(3, np.nan))) for p in paths]
+                rx_basis = [p.meta.get("u_v_basis", {}).get("rx", (np.full(3, np.nan), np.full(3, np.nan))) for p in paths]
+                u_tx = np.array([b[0] for b in tx_basis], dtype=np.complex128)
+                v_tx = np.array([b[1] for b in tx_basis], dtype=np.complex128)
+                u_rx = np.array([b[0] for b in rx_basis], dtype=np.complex128)
+                v_rx = np.array([b[1] for b in rx_basis], dtype=np.complex128)
 
                 g_paths.create_dataset("bounce_count", data=np.asarray(bounce_count, dtype=np.int32))
                 dt = h5py.string_dtype(encoding="utf-8")
@@ -131,6 +146,12 @@ def save_rt_hdf5(
                 g_paths.create_dataset("incidence_angles", data=_pad_2d_float(incidence_rows, np.nan))
                 g_paths.create_dataset("AoD", data=aod)
                 g_paths.create_dataset("AoA", data=aoa)
+                g_paths.create_dataset("AoD_unit", data=aod_u)
+                g_paths.create_dataset("AoA_unit", data=aoa_u)
+                g_paths.create_dataset("u_tx", data=u_tx)
+                g_paths.create_dataset("v_tx", data=v_tx)
+                g_paths.create_dataset("u_rx", data=u_rx)
+                g_paths.create_dataset("v_rx", data=v_rx)
 
 
 def _unpad_int_row(row: np.ndarray, pad_value: int = -1) -> List[int]:
@@ -171,6 +192,12 @@ def load_rt_hdf5(filepath: str) -> Tuple[np.ndarray, Dict[str, Dict[str, CaseDat
                 incidence = np.asarray(g_paths["incidence_angles"][()], dtype=np.float64)
                 aod = np.asarray(g_paths["AoD"][()], dtype=np.float64)
                 aoa = np.asarray(g_paths["AoA"][()], dtype=np.float64)
+                aod_u = np.asarray(g_paths["AoD_unit"][()], dtype=np.float64) if "AoD_unit" in g_paths else np.full_like(aod, np.nan)
+                aoa_u = np.asarray(g_paths["AoA_unit"][()], dtype=np.float64) if "AoA_unit" in g_paths else np.full_like(aoa, np.nan)
+                u_tx = np.asarray(g_paths["u_tx"][()], dtype=np.complex128) if "u_tx" in g_paths else np.full((len(tau_s), 3), np.nan, dtype=np.complex128)
+                v_tx = np.asarray(g_paths["v_tx"][()], dtype=np.complex128) if "v_tx" in g_paths else np.full((len(tau_s), 3), np.nan, dtype=np.complex128)
+                u_rx = np.asarray(g_paths["u_rx"][()], dtype=np.complex128) if "u_rx" in g_paths else np.full((len(tau_s), 3), np.nan, dtype=np.complex128)
+                v_rx = np.asarray(g_paths["v_rx"][()], dtype=np.complex128) if "v_rx" in g_paths else np.full((len(tau_s), 3), np.nan, dtype=np.complex128)
 
                 paths: List[Path] = []
                 for i in range(len(tau_s)):
@@ -185,6 +212,12 @@ def load_rt_hdf5(filepath: str) -> Tuple[np.ndarray, Dict[str, Dict[str, CaseDat
                                 "incidence_angles": _unpad_float_row(incidence[i]),
                                 "AoD": aod[i].tolist(),
                                 "AoA": aoa[i].tolist(),
+                                "AoD_unit": aod_u[i].tolist(),
+                                "AoA_unit": aoa_u[i].tolist(),
+                                "u_v_basis": {
+                                    "tx": (u_tx[i].tolist(), v_tx[i].tolist()),
+                                    "rx": (u_rx[i].tolist(), v_rx[i].tolist()),
+                                },
                             },
                         )
                     )

@@ -54,6 +54,7 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 p0_p13.p4_zoom_taps(tau_axis, pdp["total"], case_dir)
 
                 xpds = pathwise_xpd_summary(a_f)["xpd_db_avg"]
+                xpd_detail = pathwise_xpd_summary(a_f)
                 par = parity_labels(bounce)
                 if np.any(par == 0) and np.any(par == 1):
                     p0_p13.p6_parity_box(xpds[par == 0], xpds[par == 1], case_dir)
@@ -63,8 +64,17 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 los_exists = bool(np.any(bounce == 0))
                 report_lines.append(f"- case `{case_id}`: paths={len(paths)}, bounce_dist={dict(zip(*np.unique(bounce, return_counts=True)))}")
                 report_lines.append(f"  - LOS exists: {los_exists}")
-                report_lines.append(f"  - strongest tau={tau[strongest]*1e9:.3f} ns, power={10*np.log10(power[strongest]+1e-15):.2f} dB")
+                report_lines.append(f"  - strongest tau={tau[strongest]*1e9:.3f} ns, power={10*np.log10(power[strongest]+1e-15):.2f} dB, bounce_count={int(bounce[strongest])}")
                 report_lines.append(f"  - parity stats keys: {list(stats.keys())}")
+
+                xpd_f = np.mean(xpd_detail["xpd_db_freq"], axis=0)
+                p0_p13.p10_xpd_freq(freq, xpd_f, case_dir, label=case_id)
+                sub = xpd_detail["xpd_db_subband"]
+                mu_b = np.mean(sub, axis=0)
+                sigma_b = np.std(sub, axis=0)
+                p0_p13.p9_subband_mu_sigma(mu_b, sigma_b, case_dir)
+                report_lines.append(f"  - subband mu(dB): {[float(x) for x in mu_b]}")
+                report_lines.append(f"  - subband sigma(dB): {[float(x) for x in sigma_b]}")
 
                 if sid == "A2" and (not np.any(bounce == 1) or np.any(bounce == 0)):
                     report_lines.append("  - WARNING: A2 quality check failed (missing 1-bounce or LOS remained)")
