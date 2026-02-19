@@ -2,13 +2,24 @@ from __future__ import annotations
 
 import numpy as np
 
-from rt_core.geometry import Material, Plane
+from rt_core.geometry import Material
+from rt_core.surfaces import RectSurface
 from scenarios.common import default_antennas, make_freq
 from rt_core.tracer import trace_paths
 
 
 def build_scene(offset_y: float = -2.0):
-    return [Plane(np.array([2.5, offset_y, 0.0]), np.array([0.0, 1.0, 0.0]), Material("PEC"), "pec1")]
+    return [
+        RectSurface(
+            center=np.array([2.5, offset_y, 1.5]),
+            normal=np.array([0.0, 1.0, 0.0]),
+            width=6.0,
+            height=3.0,
+            u_axis=np.array([1.0, 0.0, 0.0]),
+            material=Material("PEC"),
+            surface_id="pec1",
+        )
+    ]
 
 
 def build_sweep_params():
