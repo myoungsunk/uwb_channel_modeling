@@ -1,0 +1,37 @@
+diff --git a/tests/test_hdf5_io.py b/tests/test_hdf5_io.py
+index cf267108f29daa6f463a703479c08c81cae33310..17cff34361b5599d4f8ff487259488217e4868ae 100644
+--- a/tests/test_hdf5_io.py
++++ b/tests/test_hdf5_io.py
+@@ -1,29 +1,32 @@
+ import os
+ import tempfile
+ 
+ import numpy as np
++import pytest
++
++pytest.importorskip("h5py")
+ 
+ from rt_core.tracer import Path
+ from rt_io.hdf5_io import CaseData, load_rt_hdf5, save_rt_hdf5, self_test_roundtrip
+ 
+ 
+ def _dummy_path(seed: int = 1) -> Path:
+     rng = np.random.default_rng(seed)
+     return Path(
+         tau_s=10e-9,
+         a_f=(rng.standard_normal((16, 2, 2)) + 1j * rng.standard_normal((16, 2, 2))).astype(np.complex128),
+         meta={
+             "bounce_count": 2,
+             "interactions": ["reflection", "reflection"],
+             "surface_ids": [1, 3],
+             "incidence_angles": [0.3, 0.7],
+             "AoD": [1.0, 0.0, 0.0],
+             "AoA": [-1.0, 0.0, 0.0],
+         },
+     )
+ 
+ 
+ def test_hdf5_schema_roundtrip():
+     f = np.linspace(3e9, 10e9, 16)
+     payload = {"A1": {"case_0": CaseData(params={"max_bounce": 1}, paths=[_dummy_path(2)])}}
+     with tempfile.TemporaryDirectory() as td:
