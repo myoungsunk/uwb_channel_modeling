@@ -22,6 +22,12 @@ def _dummy_path(seed: int = 1) -> Path:
             "incidence_angles": [0.3, 0.7],
             "AoD": [1.0, 0.0, 0.0],
             "AoA": [-1.0, 0.0, 0.0],
+            "AoD_unit": [1.0, 0.0, 0.0],
+            "AoA_unit": [-1.0, 0.0, 0.0],
+            "u_v_basis": {
+                "tx": ([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]),
+                "rx": ([0.0, 1.0, 0.0], [0.0, 0.0, 1.0]),
+            },
         },
     )
 
@@ -39,6 +45,8 @@ def test_hdf5_schema_roundtrip():
     assert meta.convention == "IEEE RHCP"
     p = loaded["A1"]["case_0"].paths[0]
     assert p.meta["surface_ids"] == [1, 3]
+    assert np.allclose(np.asarray(p.meta["AoD_unit"]), np.array([1.0, 0.0, 0.0]))
+    assert "u_v_basis" in p.meta and "tx" in p.meta["u_v_basis"]
     assert p.a_f.shape == (16, 2, 2)
 
 
