@@ -95,6 +95,11 @@ def _angles_from_dir(d: NDArray[np.float64]) -> Tuple[float, float]:
     return az, el
 
 
+def _unit_dir(d: NDArray[np.float64]) -> NDArray[np.float64]:
+    dd = np.asarray(d, dtype=float)
+    return dd / np.linalg.norm(dd)
+
+
 def trace_paths(
     planes: Sequence[Surface],
     tx: AntennaPort,
@@ -128,6 +133,8 @@ def trace_paths(
                     "incidence_angles": [],
                     "AoD": _angles_from_dir(d),
                     "AoA": _angles_from_dir(-d),
+                    "AoD_unit": _unit_dir(d),
+                    "AoA_unit": _unit_dir(-d),
                     "u_v_basis": {"tx": tx.transverse_port_basis(d), "rx": rx.transverse_port_basis(-d)},
                 },
             )
@@ -184,6 +191,8 @@ def trace_paths(
                         "incidence_angles": incidence,
                         "AoD": _angles_from_dir(seg_u[0]),
                         "AoA": _angles_from_dir(-seg_u[-1]),
+                        "AoD_unit": _unit_dir(seg_u[0]),
+                        "AoA_unit": _unit_dir(-seg_u[-1]),
                         "u_v_basis": {"tx": tx.transverse_port_basis(seg_u[0]), "rx": rx.transverse_port_basis(-seg_u[-1])},
                     },
                 )

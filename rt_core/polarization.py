@@ -82,9 +82,16 @@ def projection_matrix(from_basis: Tuple[Vector, Vector], to_basis: Tuple[Vector,
 
 
 def _complex_eps_r(freq_hz: NDArray[np.float64], eps_r: float, tan_delta: float) -> ComplexVec:
-    w = 2.0 * np.pi * freq_hz
-    sigma = w * EPS0 * eps_r * tan_delta
-    return eps_r - 1j * sigma / (w * EPS0)
+    # NOTE:
+    # Use a simple dispersive loss model so dielectric reflection can vary across UWB.
+    # We map tan_delta (specified around 1 GHz) to an equivalent conductivity term:
+    #   sigma_dc = 2*pi*f_ref*eps0*eps_r*tan_delta
+    # and apply j*sigma/(w*eps0), which scales as 1/f.
+    f = np.asarray(freq_hz, dtype=float)
+    w = 2.0 * np.pi * np.maximum(f, 1.0)
+    f_ref = 1.0e9
+    sigma_dc = 2.0 * np.pi * f_ref * EPS0 * eps_r * tan_delta
+    return (eps_r - 1j * sigma_dc / (w * EPS0)).astype(np.complex128)
 
 
 def fresnel_coefficients(
