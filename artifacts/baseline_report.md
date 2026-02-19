@@ -7,7 +7,7 @@
 ```text
 ModuleNotFoundError: No module named 'numpy'
 ModuleNotFoundError: No module named 'matplotlib'
-(8 errors during collection)
+(10 errors during collection)
 ```
 
 ### `python -m scripts.run_validation --out artifacts/baseline_report.md`

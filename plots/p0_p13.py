@@ -86,6 +86,16 @@ def p9_subband_mu_sigma(mu: np.ndarray, sigma: np.ndarray, outdir: str) -> str:
     return _save(fig, outdir, "P9")
 
 
+def p10_xpd_freq(freq: np.ndarray, xpd_db_freq: np.ndarray, outdir: str, label: str = "XPD") -> str:
+    fig, ax = plt.subplots()
+    ax.plot(freq / 1e9, xpd_db_freq, label=label)
+    ax.set_xlabel("frequency [GHz]")
+    ax.set_ylabel("XPD [dB]")
+    ax.set_title("P10 XPD(f)")
+    ax.legend()
+    return _save(fig, outdir, "P10")
+
+
 def p12_delay_mu_sigma(mu: np.ndarray, sigma: np.ndarray, outdir: str) -> str:
     fig, ax = plt.subplots()
     x = np.arange(len(mu))

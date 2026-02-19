@@ -33,11 +33,22 @@ def build_scene(gap: float = 2.0):
 
 
 def build_sweep_params():
-    return [{"case_id": "a3_even", "gap": 2.0, "max_bounce": 2, "los_blocked": True}]
+    return [
+        {"case_id": "a3_even", "gap": 2.0, "max_bounce": 2, "los_blocked": True},
+        {"case_id": "a3_even_strict", "gap": 2.0, "max_bounce": 2, "los_blocked": True, "only_bounce": 2, "strict": True},
+    ]
 
 
 def run_case(params):
     tx, rx = default_antennas()
     f = make_freq()
     paths = trace_paths(build_scene(params["gap"]), tx, rx, f, max_bounce=params["max_bounce"], los_blocked=params["los_blocked"])
+
+    only_bounce = params.get("only_bounce")
+    if only_bounce is not None:
+        paths = [p for p in paths if int(p.meta.get("bounce_count", -1)) == int(only_bounce)]
+
+    if params.get("strict", False):
+        assert all(int(p.meta.get("bounce_count", -1)) == 2 for p in paths), "A3 strict mode requires bounce=2 only"
+
     return f, paths
