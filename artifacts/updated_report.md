@@ -7,7 +7,7 @@
 ```text
 ModuleNotFoundError: No module named 'numpy'
 ModuleNotFoundError: No module named 'matplotlib'
-(12 errors during collection; includes new tests/test_direction_aware_projection.py)
+(13 errors during collection)
 ```
 
 ### `python -m scripts.run_validation --out artifacts/updated_report.md`
