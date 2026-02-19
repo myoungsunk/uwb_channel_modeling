@@ -37,6 +37,7 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
     all_names = []
     failures: List[str] = []
     a5_strongest: List[Dict[str, float]] = []
+    a2_strongest: List[Dict[str, float]] = []
 
     for sid, mod_name in SCENARIO_MODULES.items():
         mod = import_module(mod_name)
@@ -73,12 +74,14 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 los_exists = bool(np.any(bounce == 0))
                 strongest_r_m = float(tau[strongest] * C0)
                 strongest_parity = int(bounce[strongest] % 2)
+                f_ref = float(np.mean(freq))
+                fspl_db = float(20.0 * np.log10((4.0 * np.pi * strongest_r_m * f_ref) / C0))
                 report_lines.append(f"- case `{case_id}`: paths={len(paths)}, bounce_dist={dict(zip(*np.unique(bounce, return_counts=True)))}")
                 report_lines.append(f"  - LOS exists: {los_exists}")
                 report_lines.append(
                     f"  - strongest path id={strongest}, tau={tau[strongest]*1e9:.3f} ns, "
                     f"r={strongest_r_m:.3f} m, power={10*np.log10(power[strongest]+1e-15):.2f} dB, "
-                    f"bounce_count={int(bounce[strongest])}"
+                    f"bounce_count={int(bounce[strongest])}, fspl_ref={fspl_db:.2f} dB @ {f_ref/1e9:.2f} GHz"
                 )
                 parity_lines = []
                 for k, v in stats.items():
@@ -95,18 +98,18 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 report_lines.append(f"  - subband sigma(dB): {[float(x) for x in sigma_b]}")
                 report_lines.append(f"  - plots: [P1]({case_dir}/P1.png), [P2]({case_dir}/P2.png), [P3]({case_dir}/P3.png), [P4]({case_dir}/P4.png), [P9]({case_dir}/P9.png), [P10]({case_dir}/P10.png)")
 
-                xpd_f = np.mean(xpd_detail["xpd_db_freq"], axis=0)
-                p0_p13.p10_xpd_freq(freq, xpd_f, case_dir, label=case_id)
-                sub = xpd_detail["xpd_db_subband"]
-                mu_b = np.mean(sub, axis=0)
-                sigma_b = np.std(sub, axis=0)
-                p0_p13.p9_subband_mu_sigma(mu_b, sigma_b, case_dir)
-                report_lines.append(f"  - subband mu(dB): {[float(x) for x in mu_b]}")
-                report_lines.append(f"  - subband sigma(dB): {[float(x) for x in sigma_b]}")
-
                 if sid == "A2" and (not np.any(bounce == 1) or np.any(bounce == 0)):
                     report_lines.append("  - WARNING: A2 quality check failed (missing 1-bounce or LOS remained)")
 
+                if sid == "A2":
+                    a2_strongest.append(
+                        {
+                            "case_id": case_id,
+                            "offset_y": float(p.get("offset_y", np.nan)),
+                            "strongest_db": float(10 * np.log10(power[strongest] + 1e-15)),
+                            "r_m": strongest_r_m,
+                        }
+                    )
                 if sid == "A2" and strongest_parity != 1:
                     failures.append(f"A2:{case_id} strongest parity expected odd(1), got {strongest_parity}")
                 if sid == "A3" and p.get("strict", False) and np.any(bounce != 2):
@@ -132,6 +135,18 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 report_lines.append(f"- case `{case_id}`: paths=0")
 
         report_lines.append("")
+
+    # A2 physics sanity check: longer offset/distance should not have higher strongest power.
+    if a2_strongest:
+        by_case = {row["case_id"]: row for row in a2_strongest}
+        if "a2_o-2.0" in by_case and "a2_o-3.0" in by_case:
+            near = by_case["a2_o-2.0"]
+            far = by_case["a2_o-3.0"]
+            if far["strongest_db"] > near["strongest_db"] + 1e-9:
+                failures.append(
+                    "A2 distance check failed: a2_o-3.0 strongest power "
+                    f"{far['strongest_db']:.3f} dB > a2_o-2.0 {near['strongest_db']:.3f} dB"
+                )
 
     # A5 physics sanity check: with higher rho, strongest power should not increase.
     if a5_strongest:

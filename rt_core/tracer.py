@@ -23,6 +23,7 @@ from numpy.typing import NDArray
 
 from rt_core.antenna import AntennaPort
 from rt_core.geometry import Plane, mirror_point_across_plane
+from rt_core.path_gain import fspl_amplitude
 from rt_core.polarization import DepolConfig, fresnel_coefficients, projection_matrix, sp_basis
 from rt_core.surfaces import RectSurface
 
@@ -109,6 +110,7 @@ def trace_paths(
     los_blocked: bool = False,
     depol: DepolConfig | None = None,
     visibility_fn: Callable[[NDArray[np.float64], NDArray[np.float64], Sequence[Surface]], bool] | None = None,
+    normalize_total_power: bool = False,
 ) -> List[Path]:
     """Enumerate LOS and up-to-2-bounce specular paths."""
 
@@ -122,6 +124,8 @@ def trace_paths(
         d = rxp - txp
         dist = np.linalg.norm(d)
         a = np.repeat(np.eye(2, dtype=np.complex128)[None, :, :], len(freq_hz), axis=0)
+        g_los = fspl_amplitude(freq_hz, dist)
+        a = g_los[:, None, None] * a
         paths.append(
             Path(
                 tau_s=float(dist / C0),
@@ -179,6 +183,8 @@ def trace_paths(
                         a_freq[fi] = dmat @ a_freq[fi] if depol.mode == "single" else dmat @ a_freq[fi] @ dmat
                         if depol.loss_enabled:
                             a_freq[fi] = depol_loss_scalar(depol.rho, depol.loss_alpha) * a_freq[fi]
+            g_path = fspl_amplitude(freq_hz, dist)
+            a_freq = g_path[:, None, None] * a_freq
             paths.append(
                 Path(
                     tau_s=dist / C0,
@@ -197,4 +203,13 @@ def trace_paths(
                     },
                 )
             )
+    if normalize_total_power and paths:
+        total = 0.0
+        for p in paths:
+            total += float(np.sum(np.abs(p.a_f) ** 2))
+        if total > 0.0:
+            scale = 1.0 / np.sqrt(total)
+            for p in paths:
+                p.a_f = p.a_f * scale
+
     return paths

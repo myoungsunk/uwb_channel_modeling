@@ -1,17 +1,10 @@
-# Baseline Report
+# Baseline Validation Attempt
 
 ## Commands
+- `python -m scripts.run_validation --out artifacts/baseline_report.md`
 
-### `pytest -q`
+## Result
+- Failed in this environment due to missing dependency: `ModuleNotFoundError: No module named 'numpy'`.
 
-```text
-ModuleNotFoundError: No module named 'numpy'
-ModuleNotFoundError: No module named 'matplotlib'
-(13 errors during collection)
-```
-
-### `python -m scripts.run_validation --out artifacts/baseline_report.md`
-
-```text
-ModuleNotFoundError: No module named 'numpy'
-```
+## Notes
+- This file records the pre-change baseline attempt required by workflow.
