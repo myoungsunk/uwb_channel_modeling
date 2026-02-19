@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from rt_core.geometry import Material, Plane
+from rt_core.geometry import Material
+from rt_core.surfaces import RectSurface
 from rt_core.tracer import trace_paths
 from scenarios.common import default_antennas, make_freq
 
@@ -10,8 +11,24 @@ from scenarios.common import default_antennas, make_freq
 def build_scene(gap: float = 2.0):
     m = Material("PEC")
     return [
-        Plane(np.array([2.0, -gap, 0.0]), np.array([0.0, 1.0, 0.0]), m, "w1"),
-        Plane(np.array([3.5, gap, 0.0]), np.array([0.0, -1.0, 0.0]), m, "w2"),
+        RectSurface(
+            center=np.array([2.0, -gap, 1.5]),
+            normal=np.array([0.0, 1.0, 0.0]),
+            width=5.0,
+            height=3.0,
+            u_axis=np.array([1.0, 0.0, 0.0]),
+            material=m,
+            surface_id="w1",
+        ),
+        RectSurface(
+            center=np.array([4.0, 0.0, 1.5]),
+            normal=np.array([-1.0, 0.0, 0.0]),
+            width=4.0,
+            height=3.0,
+            u_axis=np.array([0.0, 1.0, 0.0]),
+            material=m,
+            surface_id="w2",
+        ),
     ]
 
 
