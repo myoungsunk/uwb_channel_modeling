@@ -32,3 +32,11 @@ def test_a2_a3_like_parity_separation():
     mu_even = [v["mu"] for k, v in stats.items() if "parity=0" in k][0]
     mu_odd = [v["mu"] for k, v in stats.items() if "parity=1" in k][0]
     assert mu_even > mu_odd
+
+
+def test_xpd_is_finite_when_co_and_cross_are_zero():
+    a = np.zeros((2, 4, 2, 2), dtype=np.complex128)
+    summary = pathwise_xpd_summary(a)
+    assert np.all(np.isfinite(summary["xpd_db_freq"]))
+    assert np.all(np.isfinite(summary["xpd_db_avg"]))
+    assert np.all(np.isfinite(summary["xpd_db_subband"]))

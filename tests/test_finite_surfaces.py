@@ -46,3 +46,43 @@ def test_rectsurface_rejects_out_of_bounds_reflection():
     f = np.linspace(3e9, 5e9, 8)
     paths = trace_paths([wall], tx, rx, f, max_bounce=1, los_blocked=True)
     assert not any(p.meta["bounce_count"] == 1 for p in paths)
+
+def test_multibounce_visibility_receives_non_participating_blockers():
+    tx, rx = _ants()
+    f = np.linspace(3e9, 5e9, 8)
+    wall1 = RectSurface(
+        center=np.array([2.0, -2.0, 1.5]),
+        normal=np.array([0.0, 1.0, 0.0]),
+        width=8.0,
+        height=4.0,
+        u_axis=np.array([1.0, 0.0, 0.0]),
+        material=Material("PEC"),
+        surface_id="wall1",
+    )
+    wall2 = RectSurface(
+        center=np.array([4.0, 0.0, 1.5]),
+        normal=np.array([-1.0, 0.0, 0.0]),
+        width=8.0,
+        height=4.0,
+        u_axis=np.array([0.0, 1.0, 0.0]),
+        material=Material("PEC"),
+        surface_id="wall2",
+    )
+    blocker = RectSurface(
+        center=np.array([3.0, 1.5, 1.5]),
+        normal=np.array([0.0, -1.0, 0.0]),
+        width=8.0,
+        height=4.0,
+        u_axis=np.array([1.0, 0.0, 0.0]),
+        material=Material("PEC"),
+        surface_id="blocker",
+    )
+
+    blocker_counts = []
+
+    def visibility_fn(p1, p2, blockers):
+        blocker_counts.append(len(blockers))
+        return True
+
+    trace_paths([wall1, wall2, blocker], tx, rx, f, max_bounce=2, los_blocked=True, visibility_fn=visibility_fn)
+    assert any(count > 0 for count in blocker_counts)
