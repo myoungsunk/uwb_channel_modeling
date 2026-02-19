@@ -46,3 +46,30 @@ def test_rectsurface_rejects_out_of_bounds_reflection():
     f = np.linspace(3e9, 5e9, 8)
     paths = trace_paths([wall], tx, rx, f, max_bounce=1, los_blocked=True)
     assert not any(p.meta["bounce_count"] == 1 for p in paths)
+
+
+def test_reflection_segment_occlusion_by_other_surface():
+    tx, rx = _ants()
+    f = np.linspace(3e9, 5e9, 8)
+    wall = RectSurface(
+        center=np.array([3.0, -2.0, 1.5]),
+        normal=np.array([0.0, 1.0, 0.0]),
+        width=8.0,
+        height=4.0,
+        u_axis=np.array([1.0, 0.0, 0.0]),
+        material=Material("PEC"),
+        surface_id="reflector",
+    )
+    blocker = RectSurface(
+        center=np.array([3.0, -1.0, 1.5]),
+        normal=np.array([0.0, 1.0, 0.0]),
+        width=8.0,
+        height=4.0,
+        u_axis=np.array([1.0, 0.0, 0.0]),
+        material=Material("PEC"),
+        surface_id="blocker",
+    )
+
+    paths = trace_paths([wall, blocker], tx, rx, f, max_bounce=1, los_blocked=True)
+    # Without segment blocker checks, the reflector path can survive despite crossing blocker.
+    assert not any(p.meta["surface_labels"] == ["reflector"] for p in paths)
