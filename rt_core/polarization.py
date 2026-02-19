@@ -31,6 +31,8 @@ class DepolConfig:
     mode: str = "single"  # "single" | "inout"
     rho: float = 0.0
     seed: Optional[int] = None
+    loss_enabled: bool = False
+    loss_alpha: float = 0.0
 
 
 def normalize(v: Vector) -> Vector:
@@ -108,12 +110,32 @@ def fresnel_coefficients(
 
 
 def depol_matrix(rho: float, rng: np.random.Generator) -> ComplexMat:
+    """Backward-compatible alias for unitary depolarization mixing."""
+
+    return unitary_depol_matrix(rho, rng)
+
+
+def unitary_depol_matrix(rho: float, rng: np.random.Generator) -> ComplexMat:
+    """Generate a unitary 2x2 depolarization mixer.
+
+    rho controls the rotation angle (0: identity, 1: strongest mixing).
+    """
+
     rho = float(np.clip(rho, 0.0, 1.0))
-    a = np.sqrt(1.0 - rho)
-    b = np.sqrt(rho)
-    p1 = rng.uniform(0.0, 2.0 * np.pi)
-    p2 = rng.uniform(0.0, 2.0 * np.pi)
-    return np.array([[a, b * np.exp(1j * p1)], [b * np.exp(1j * p2), a]], dtype=np.complex128)
+    theta = 0.5 * np.pi * rho
+    c = np.cos(theta)
+    s = np.sin(theta)
+    phi = rng.uniform(0.0, 2.0 * np.pi)
+    e = np.exp(1j * phi)
+    return np.array([[c, s * e], [-s * np.conj(e), c]], dtype=np.complex128)
+
+
+def depol_loss_scalar(rho: float, alpha: float = 0.0) -> float:
+    """Optional explicit depolarization loss scalar in (0, 1]."""
+
+    rr = float(np.clip(rho, 0.0, 1.0))
+    aa = max(0.0, float(alpha))
+    return float(np.exp(-aa * rr))
 
 
 def apply_reflection_event(
@@ -140,10 +162,12 @@ def apply_reflection_event(
         r = np.diag([gamma_s[i], gamma_p[i]])
         m = t_out.conj().T @ r @ t_in @ a_in
         if depol and depol.enabled and depol.rho > 0:
-            d = depol_matrix(depol.rho, rng)
+            d = unitary_depol_matrix(depol.rho, rng)
             if depol.mode == "inout":
                 m = d @ m @ d
             else:
                 m = d @ m
+            if depol.loss_enabled:
+                m = depol_loss_scalar(depol.rho, depol.loss_alpha) * m
         out[i] = m
     return out

@@ -31,7 +31,9 @@ def test_rectsurface_rejects_out_of_bounds_reflection():
     wall = RectSurface(
         center=np.array([2.5, -2.0, 1.5]),
         normal=np.array([0.0, 1.0, 0.0]),
-        width=1.0,
+        # 예상 반사점 x=3.0이 경계 밖이 되도록 폭을 충분히 작게 설정
+        # (center x=2.5, |du|=0.5 > width/2)
+        width=0.8,
         height=1.0,
         u_axis=np.array([1.0, 0.0, 0.0]),
         material=Material("PEC"),
