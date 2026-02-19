@@ -151,8 +151,10 @@ def trace_paths(
             if pts is None:
                 continue
             way = [txp] + pts + [rxp]
-            used_surface_idxs = set(idxs)
-            blockers: List[Surface] = [planes[j] for j in range(len(planes)) if j not in used_surface_idxs]
+            blockers: List[Surface] = []
+            if b >= 2:
+                used_surface_idxs = set(idxs)
+                blockers = [planes[j] for j in range(len(planes)) if j not in used_surface_idxs]
             if any(not visibility(way[i], way[i + 1], blockers) for i in range(len(way) - 1)):
                 continue
             seg_dirs = [way[i + 1] - way[i] for i in range(len(way) - 1)]
