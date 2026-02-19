@@ -16,7 +16,7 @@ def parity_labels(bounce_count: np.ndarray) -> np.ndarray:
 def pathwise_xpd_db(a_f: np.ndarray, freq_axis: int = 1) -> np.ndarray:
     """Per-path XPD over frequency, returns shape (L,Nf) or reduced by caller."""
 
-    co = np.abs(a_f[..., 0, 0]) ** 2 + np.abs(a_f[..., 1, 1]) ** 2
+    co = np.abs(a_f[..., 0, 0]) ** 2 + np.abs(a_f[..., 1, 1]) ** 2 + 1e-15
     cross = np.abs(a_f[..., 0, 1]) ** 2 + np.abs(a_f[..., 1, 0]) ** 2 + 1e-15
     return 10.0 * np.log10(co / cross)
 
@@ -35,7 +35,7 @@ def tapwise_xpd_db(
     win_s: Tuple[float, float] | None = None,
     early_late_split_s: Optional[float] = None,
 ) -> Dict[str, np.ndarray]:
-    p_co = np.abs(h_tau[:, 0, 0]) ** 2 + np.abs(h_tau[:, 1, 1]) ** 2
+    p_co = np.abs(h_tau[:, 0, 0]) ** 2 + np.abs(h_tau[:, 1, 1]) ** 2 + 1e-15
     p_cross = np.abs(h_tau[:, 0, 1]) ** 2 + np.abs(h_tau[:, 1, 0]) ** 2 + 1e-15
     xpd = 10.0 * np.log10(p_co / p_cross)
     mask = np.ones_like(xpd, dtype=bool)

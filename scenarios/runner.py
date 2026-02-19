@@ -36,6 +36,7 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
     all_k = []
     all_names = []
     failures: List[str] = []
+    numeric_issues: List[str] = []
     a5_strongest: List[Dict[str, float]] = []
     a2_strongest: List[Dict[str, float]] = []
 
@@ -88,6 +89,10 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                     parity_lines.append(f"{k}: mu={float(v['mu']):.3f}, sigma={float(v['sigma']):.3f}, n={int(v['count'])}")
                 report_lines.append(f"  - parity stats: {parity_lines}")
 
+                xpd_values = np.concatenate([xpd_detail["xpd_db_avg"].ravel(), xpd_detail["xpd_db_freq"].ravel(), xpd_detail["xpd_db_subband"].ravel()])
+                if not np.all(np.isfinite(xpd_values)):
+                    numeric_issues.append(f"{sid}:{case_id} XPD contains non-finite values")
+
                 xpd_f = np.mean(xpd_detail["xpd_db_freq"], axis=0)
                 p0_p13.p10_xpd_freq(freq, xpd_f, case_dir, label=case_id)
                 sub = xpd_detail["xpd_db_subband"]
@@ -133,6 +138,8 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
                 all_names.append(f"{sid}:{case_id}")
             else:
                 report_lines.append(f"- case `{case_id}`: paths=0")
+                if sid == "A3" and p.get("strict", False):
+                    failures.append(f"A3 strict:{case_id} produced zero paths")
 
         report_lines.append("")
 
@@ -165,6 +172,9 @@ def run_all(out_h5: str = "artifacts/rt_sweep.h5", out_plot_dir: str = "artifact
     Path(out_h5).parent.mkdir(parents=True, exist_ok=True)
     save_rt_hdf5(out_h5, freq, payload, basis="linear", convention="IEEE RHCP")
     p0_p13.p13_kfactor_trend(all_names, all_k, out_plot_dir)
+
+    if numeric_issues:
+        failures.extend(numeric_issues)
 
     report_lines.append("## Failure Checks")
     if failures:
