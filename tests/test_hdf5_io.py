@@ -2,6 +2,9 @@ import os
 import tempfile
 
 import numpy as np
+import pytest
+
+pytest.importorskip("h5py")
 
 from rt_core.tracer import Path
 from rt_io.hdf5_io import CaseData, load_rt_hdf5, save_rt_hdf5, self_test_roundtrip
