@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Iterable, Sequence
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +15,14 @@ def _save(fig: plt.Figure, outdir: str, name: str) -> str:
     png = Path(outdir) / f"{name}.png"
     pdf = Path(outdir) / f"{name}.pdf"
     fig.savefig(png, dpi=150, bbox_inches="tight")
-    fig.savefig(pdf, bbox_inches="tight")
+    try:
+        fig.savefig(pdf, bbox_inches="tight")
+    except PermissionError:
+        warnings.warn(
+            f"Could not write '{pdf}' (permission denied). Saved PNG only.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     plt.close(fig)
     return str(png)
 
