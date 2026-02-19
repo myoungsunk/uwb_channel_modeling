@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Dict, Iterable, Sequence
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +15,14 @@ def _save(fig: plt.Figure, outdir: str, name: str) -> str:
     png = Path(outdir) / f"{name}.png"
     pdf = Path(outdir) / f"{name}.pdf"
     fig.savefig(png, dpi=150, bbox_inches="tight")
-    fig.savefig(pdf, bbox_inches="tight")
+    try:
+        fig.savefig(pdf, bbox_inches="tight")
+    except PermissionError:
+        warnings.warn(
+            f"Could not write '{pdf}' (permission denied). Saved PNG only.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     plt.close(fig)
     return str(png)
 
@@ -76,6 +84,16 @@ def p9_subband_mu_sigma(mu: np.ndarray, sigma: np.ndarray, outdir: str) -> str:
     ax.errorbar(x, mu, yerr=sigma, fmt="o-")
     ax.set_title("P9 subband mu/sigma")
     return _save(fig, outdir, "P9")
+
+
+def p10_xpd_freq(freq: np.ndarray, xpd_db_freq: np.ndarray, outdir: str, label: str = "XPD") -> str:
+    fig, ax = plt.subplots()
+    ax.plot(freq / 1e9, xpd_db_freq, label=label)
+    ax.set_xlabel("frequency [GHz]")
+    ax.set_ylabel("XPD [dB]")
+    ax.set_title("P10 XPD(f)")
+    ax.legend()
+    return _save(fig, outdir, "P10")
 
 
 def p12_delay_mu_sigma(mu: np.ndarray, sigma: np.ndarray, outdir: str) -> str:
