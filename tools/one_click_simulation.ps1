@@ -1,4 +1,4 @@
-# UWB Channel Modeling - One-click simulation/validation runner (PowerShell)
+# UWB Channel Modeling - one-click simulation/validation runner (PowerShell)
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File .\tools\one_click_simulation.ps1
 # Optional:
@@ -14,21 +14,45 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "[0/9] Repo 확인" -ForegroundColor Cyan
+Write-Host "[0/9] Repo check" -ForegroundColor Cyan
 $repo = (Get-Location).Path
 Write-Host "Repo: $repo"
 
 function Get-PythonCandidates {
-    $candidates = @()
+    $candidates = New-Object System.Collections.ArrayList
+
+    # 1) Launcher commands from PATH
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        $candidates += ,@("py", "-3")
+        [void]$candidates.Add(@("py", "-3"))
     }
     if (Get-Command python -ErrorAction SilentlyContinue) {
-        $candidates += ,@("python")
+        [void]$candidates.Add(@("python"))
     }
-    if ($candidates.Count -eq 0) {
-        throw "Python 실행기(python 또는 py)를 찾을 수 없습니다."
+
+    # 2) Well-known absolute locations on Windows
+    $winPy = @(
+        "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python310\python.exe",
+        "$env:ProgramFiles\Python312\python.exe",
+        "$env:ProgramFiles\Python311\python.exe",
+        "$env:ProgramFiles\Python310\python.exe",
+        "$env:ProgramFiles(x86)\Python312\python.exe",
+        "$env:ProgramFiles(x86)\Python311\python.exe",
+        "$env:ProgramFiles(x86)\Python310\python.exe"
+    )
+    foreach ($path in $winPy) {
+        if ($path -and (Test-Path $path)) {
+            [void]$candidates.Add(@($path))
+        }
     }
+
+    # 3) Last fallback: Python launcher absolute path
+    $pyLauncher = "$env:SystemRoot\py.exe"
+    if (Test-Path $pyLauncher) {
+        [void]$candidates.Add(@($pyLauncher, "-3"))
+    }
+
     return $candidates
 }
 
@@ -49,7 +73,8 @@ function Invoke-Python {
 }
 
 function Select-WorkingPython {
-    foreach ($candidate in (Get-PythonCandidates)) {
+    $candidates = Get-PythonCandidates
+    foreach ($candidate in $candidates) {
         try {
             $code = Invoke-Python -Launcher $candidate -CmdArgs @("-c", "import sys; print(sys.executable)")
             if ($code -eq 0) {
@@ -59,71 +84,77 @@ function Select-WorkingPython {
             continue
         }
     }
-    throw "작동 가능한 Python 실행기를 찾지 못했습니다."
+
+    $msg = @(
+        "No usable Python launcher found.",
+        "Tried PATH commands (py/python), common install paths, and %SystemRoot%\\py.exe.",
+        "Install Python 3.10+ and ensure either 'py -3' or 'python' works in PowerShell."
+    ) -join " "
+    throw $msg
 }
 
 $launcher = Select-WorkingPython
 Write-Host ("Using launcher: " + ($launcher -join " ")) -ForegroundColor DarkCyan
 
-Write-Host "[1/9] venv 준비" -ForegroundColor Yellow
+Write-Host "[1/9] Setup venv" -ForegroundColor Yellow
 $venvDir = Join-Path $repo ".venv"
 $venvPy = Join-Path $venvDir "Scripts\python.exe"
 
 if (!(Test-Path $venvPy)) {
     if (Test-Path $venvDir) {
-        Write-Host " - 기존 .venv가 불완전하여 재생성합니다." -ForegroundColor DarkYellow
+        Write-Host " - Existing .venv looks incomplete. Recreating..." -ForegroundColor DarkYellow
         Remove-Item -Recurse -Force $venvDir
     }
 
-    Write-Host " - python -m venv .venv" -ForegroundColor DarkYellow
+    Write-Host " - Creating .venv via: -m venv .venv" -ForegroundColor DarkYellow
     $createCode = Invoke-Python -Launcher $launcher -CmdArgs @("-m", "venv", ".venv")
     if ($createCode -ne 0) {
-        throw "venv 생성 실패 (exit=$createCode)"
+        throw "venv creation failed (exit=$createCode)"
     }
 }
 
 if (!(Test-Path $venvPy)) {
-    throw "venv python을 찾을 수 없습니다: $venvPy"
+    throw "venv python not found after creation: $venvPy"
 }
 
-Write-Host "[2/9] 패키지 도구 업그레이드" -ForegroundColor Yellow
+Write-Host "[2/9] Upgrade packaging tools" -ForegroundColor Yellow
 & $venvPy -m pip install --upgrade pip setuptools wheel
 
-Write-Host "[3/9] 의존성 설치" -ForegroundColor Yellow
+Write-Host "[3/9] Install dependencies" -ForegroundColor Yellow
 if (Test-Path "requirements.txt") {
     & $venvPy -m pip install -r requirements.txt
 } else {
     & $venvPy -m pip install numpy matplotlib scipy h5py pytest
 }
 
-Write-Host "[4/9] baseline validation" -ForegroundColor Yellow
+Write-Host "[4/9] Baseline validation" -ForegroundColor Yellow
 & $venvPy -m scripts.run_validation --out artifacts/baseline_report.md
 
 if (-not $SkipTests) {
-    Write-Host "[5/9] pytest" -ForegroundColor Yellow
+    Write-Host "[5/9] Run pytest" -ForegroundColor Yellow
     & $venvPy -m pytest -q
 } else {
-    Write-Host "[5/9] pytest 생략(-SkipTests)" -ForegroundColor DarkYellow
+    Write-Host "[5/9] Skip pytest (-SkipTests)" -ForegroundColor DarkYellow
 }
 
-Write-Host "[6/9] 시뮬레이션/검증 실행 (updated report)" -ForegroundColor Yellow
+Write-Host "[6/9] Updated validation" -ForegroundColor Yellow
 & $venvPy -m scripts.run_validation --out $OutReport
 
-Write-Host "[7/9] HDF5 출력 확인" -ForegroundColor Yellow
+Write-Host "[7/9] Check HDF5 output" -ForegroundColor Yellow
 if (Test-Path $OutH5) {
     Write-Host " - H5 exists: $OutH5" -ForegroundColor Green
 } else {
-    Write-Host " - H5 경로가 비어있습니다. runner 기본값은 artifacts/rt_sweep.h5 입니다." -ForegroundColor DarkYellow
+    Write-Host " - H5 not found at $OutH5 (runner default is artifacts/rt_sweep.h5)." -ForegroundColor DarkYellow
 }
 
-Write-Host "[8/9] 결과 요약" -ForegroundColor Green
+Write-Host "[8/9] Summary" -ForegroundColor Green
 Write-Host " - baseline: artifacts/baseline_report.md"
 Write-Host " - updated : $OutReport"
 Write-Host " - plots   : artifacts/plots"
 
-Write-Host "[9/9] updated report preview" -ForegroundColor Cyan
+Write-Host "[9/9] Updated report preview" -ForegroundColor Cyan
 if (Test-Path $OutReport) {
     Get-Content $OutReport -TotalCount 60
 } else {
-    Write-Host "updated report를 찾지 못했습니다: $OutReport" -ForegroundColor Red
+    Write-Host "updated report not found: $OutReport" -ForegroundColor Red
 }
